@@ -18,6 +18,10 @@ export const Header = styled.View`
   align-items: center;
 `;
 
+//Método de deixar o nome mais descritivo para o DevTools:
+
+Header.displayName = "DashboardHeader";
+
 export const HeaderTitle = styled.Text`
   color: #f4ede8;
   font-size: 20px;
