@@ -18,13 +18,15 @@ import { Container, Title, UserAvatar, UserAvatarButton, BackButton } from './st
 import { useAuth } from '../../hooks/auth'
 
 interface ProfileFormData {
-  name: string
-  email: string
-  password: string
+  name: string;
+  email: string;
+  password: string;
+  old_password?: string;
+  password_confirmation?: string;
 }
 
 const Profile: React.FC = () => {
-  const { user } = useAuth()
+  const { user, updateUser } = useAuth()
 
   const formRef = useRef<FormHandles>(null)
   const navigation = useNavigation()
@@ -40,17 +42,55 @@ const Profile: React.FC = () => {
 
       const schema = Yup.object().shape({
         name: Yup.string().required('Nome obrigatório'),
-        email: Yup.string().required('E-mail obrigatório').email('Digite um e-mail válido'),
-        password: Yup.string().min(6, 'No mínimo 6 dígitos'),
-      })
+        email: Yup.string()
+          .required('E-mail obrigatório')
+          .email('Digite um e-mail válido'),
+        old_password: Yup.string(),
+        password: Yup.string().when('old_password', {
+          is: val => !!val.length,
+          then: Yup.string().required('Campo obrigatório'),
+          otherwise: Yup.string(),
+        }),
+        password_confirmation: Yup.string()
+          .when('old_password', {
+          is: val => !!val.length,
+          then: Yup.string().required('Campo obrigatório'),
+          otherwise: Yup.string(),
+        }).oneOf(
+          [Yup.ref('password'), undefined],
+          'Confirmação incorreta'
+        )
+      });
+
       await schema.validate(data, {
         abortEarly:false,
       })
 
-       await api.post('/users', data)
+      const {
+        name,
+        email,
+        old_password,
+        password,
+        password_confirmation,
+      } = data;
 
-       Alert.alert('Cadastro realizado com sucesso',
-       'Você já pode fazer login na aplicação.')
+      const formData = {
+        name,
+        email,
+        ...(old_password
+          ? {
+            old_password,
+            password,
+            password_confirmation,
+          }
+          : {}),
+      }
+
+      const response = await api.put('/profile', formData);
+
+      updateUser(response.data);
+
+       Alert.alert('Perfil atualizado com sucesso!')
        
        navigation.goBack();
 
@@ -64,8 +104,8 @@ const Profile: React.FC = () => {
       }
 
       Alert.alert(
-        'Erro no cadastro',
-        'Ocorreu um erro ao fazer o cadastro, tente novamente.',
+        'Erro na atualização do perfil',
+        'Ocorreu um erro ao atualizar seu perfil, tente novamente.',
       )
 
     }
@@ -102,7 +142,8 @@ const Profile: React.FC = () => {
               <Title>Meu Perfil</Title>
             </View>
 
-            <Form 
+            <Form
+             initialData={user} 
              ref={formRef} 
              onSubmit={handleSignUp}>
               <Input 
